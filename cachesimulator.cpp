@@ -135,19 +135,17 @@ int main(int argc, char* argv[]){
       uint32_t index2 = (bitset<32>((accessaddr.to_string().substr(L2_Cache.t,L2_Cache.s))).to_ulong());
       uint32_t offset2 = (bitset<32>((accessaddr.to_string().substr(L2_Cache.t+L2_Cache.s,L2_Cache.b))).to_ulong());
 
+      //reset access state
+      L1AcceState = 0;
+      L2AcceState = 0; 
 
       // access the L1 and L2 Cache according to the trace;
-      if (accesstype.compare("R")==0){    
-        //Implement by you:
-        // read access to the L1 Cache, 
-        //  and then L2 (if required), 
-        //  update the L1 and L2 access state variable;
+      if (accesstype.compare("R")==0){   
 
         //Check if L1 cache hit
         for(int i = 0; i < cacheconfig.L1setsize;i++){
           if(tag_arr_L1[index1][i] == tag1 && valid_L1[index1][i] == 1){
             L1AcceState = 1;
-            L2AcceState = 0;
             break;
           }
         }
@@ -155,7 +153,6 @@ int main(int argc, char* argv[]){
         //L1 cache read has missed,now checking L2
         if(L1AcceState == 0){
           L1AcceState = 2;
-          L2AcceState = 0;
           for(int i = 0; i < cacheconfig.L2setsize; i++){
             if((tag_arr_L2[index2][i] == tag2) && (valid_L2[index2][i] == 1)){
               L2AcceState = 1; //L2 hit
@@ -199,13 +196,32 @@ int main(int argc, char* argv[]){
       }
 
 
-      else 
-      {    
-        //Implement by you:
-        // write access to the L1 Cache, 
-        //and then L2 (if required), 
-        //update the L1 and L2 access state variable;
-
+      else {    
+        for(int i = 0; i < tag_arr_L1[index1][cacheconfig.L1setsize];i++){
+          //if we have write hit on L1
+          if(tag_arr_L1[index1][i] == tag1 && valid_L1[index1][i] == 1){
+            L1AcceState = 3;
+            L2AcceState = 0;
+            dirty_L1[index1][i] = 1;
+            break;
+          }
+        }
+        // if we have write miss on L1, since no allocate,forward to L2
+        if(L1AcceState== 0){
+          L1AcceState = 4;
+          for(int i = 0; i < tag_arr_L2[index2][cacheconfig.L2setsize];i++){
+            //L2 write hit
+            if(tag_arr_L2[index2][i] == tag2 && valid_L2[index2][i] == 1){
+              L2AcceState = 3;
+              dirty_L2[index2][i] == 1;
+              break;
+            }
+          }
+          //if L2 misses
+          if(L2AcceState == 0){
+            L2AcceState = 4;
+          }
+        }
 
 
 
