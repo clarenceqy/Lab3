@@ -19,6 +19,7 @@
 #include <stdlib.h>
 #include <cmath>
 #include <bitset>
+#include <array>
 
 
 using namespace std;
@@ -48,11 +49,11 @@ class Cache{
       //log2(size * Ki / blocksize / setsize) = log(size) + log(Ki) - log(blocksize) - log(setsize)
       //s = setsize == 1 ? log2(size) + 10 - log2(blocksize) : log2(size) + 10 - log2(blocksize) - log2(setsize);
       if(setsize == 0){ //Fully Associative
-        b = 0;
+        s = 0;
       }else if(setsize == 1){ // Direct Mapping
-        b = log2(size) + 10 - log2(blocksize);
+        s = log2(size) + 10 - log2(blocksize);
       }else{
-        b = log2(size) + 10 - log2(blocksize) - log2(setsize);
+        s = log2(size) + 10 - log2(blocksize) - log2(setsize);
       }
       t = 32 - s - b;
     }
@@ -65,7 +66,8 @@ int main(int argc, char* argv[]){
   config cacheconfig;
   ifstream cache_params;
   string dummyLine;
-  cache_params.open(argv[1]);
+  //cache_params.open(argv[1]);
+  cache_params.open("cacheconfig.txt");
   while(!cache_params.eof())  // read config file
   {
     cache_params>>dummyLine;
@@ -85,19 +87,38 @@ int main(int argc, char* argv[]){
   L1_Cache.init(cacheconfig.L1blocksize, cacheconfig.L1setsize, cacheconfig.L1size);
   L2_Cache.init(cacheconfig.L2blocksize, cacheconfig.L2setsize, cacheconfig.L2size);
 
-  int tag_arr_L1[(int)pow(2,L1_Cache.s)][cacheconfig.L1setsize];
-  int tag_arr_L2[(int)pow(2,L2_Cache.s)][cacheconfig.L2setsize];
+  if(cacheconfig.L1setsize == 0){
+    cacheconfig.L1setsize = 1024 * (cacheconfig.L1size / cacheconfig.L1blocksize);
+  }
 
-  int valid_L1[(int)pow(2,L1_Cache.s)][cacheconfig.L1setsize];
-  int valid_L2[(int)pow(2,L2_Cache.s)][cacheconfig.L2setsize];
+  if(cacheconfig.L2setsize == 0){
+    cacheconfig.L2setsize = 1024 * (cacheconfig.L2size / cacheconfig.L2blocksize);
+  }
 
-  int dirty_L1[(int)pow(2,L1_Cache.s)][cacheconfig.L1setsize];
-  int dirty_L2[(int)pow(2,L2_Cache.s)][cacheconfig.L2setsize];
+  int line_L1 = (int)pow(2,L1_Cache.s);
+  int line_L2 = (int)pow(2,L2_Cache.s);
 
-  int counterL1[(int)pow(2,L1_Cache.s)];
-  int counterL2[(int)pow(2,L2_Cache.s)];
+  int tag_arr_L1[line_L1][cacheconfig.L1setsize];
+  int tag_arr_L2[line_L2][cacheconfig.L2setsize];
+  memset(tag_arr_L1,0,sizeof(tag_arr_L1));
+  memset(tag_arr_L2,0,sizeof(tag_arr_L2));
 
+  int valid_L1[line_L1][cacheconfig.L1setsize];
+  int valid_L2[line_L2][cacheconfig.L2setsize];
+  memset(valid_L1,0,sizeof(valid_L1));
+  memset(valid_L2,0,sizeof(valid_L2));
 
+  //Initialize Dirty bit
+  int dirty_L1[line_L1][cacheconfig.L1setsize];
+  int dirty_L2[line_L2][cacheconfig.L2setsize];
+  memset(dirty_L1,0,sizeof(dirty_L1));
+  memset(dirty_L2,0,sizeof(dirty_L2));
+
+  //Initialize Counter
+  int counterL1[line_L1];
+  int counterL2[line_L2];
+  memset(counterL1,0,sizeof(counterL1));
+  memset(counterL2,0,sizeof(counterL2));
 
 
 
@@ -110,7 +131,8 @@ int main(int argc, char* argv[]){
   string outname;
   outname = string(argv[2]) + ".out";
 
-  traces.open(argv[2]);
+  //traces.open(argv[2]);
+  traces.open("trace.txt");
   tracesout.open(outname.c_str());
 
   string line;
@@ -122,6 +144,7 @@ int main(int argc, char* argv[]){
   if (traces.is_open()&&tracesout.is_open()){    
     while (getline (traces,line)){   // read mem access file and access Cache
 
+      //cout << counterL1[2038] << endl;
       istringstream iss(line); 
       if (!(iss >> accesstype >> xaddr)) {break;}
       stringstream saddr(xaddr);
@@ -129,10 +152,16 @@ int main(int argc, char* argv[]){
       accessaddr = bitset<32> (addr);
 
       uint32_t tag1 = (bitset<32>((accessaddr.to_string().substr(0,L1_Cache.t))).to_ulong());
-      uint32_t index1 = (bitset<32>((accessaddr.to_string().substr(L1_Cache.t,L1_Cache.s))).to_ulong());
+      uint32_t index1 = 0;
+      if(cacheconfig.L1setsize != 0){
+        index1 = (bitset<32>((accessaddr.to_string().substr(L1_Cache.t,L1_Cache.s))).to_ulong());
+      }
       uint32_t offset1 = (bitset<32>((accessaddr.to_string().substr(L1_Cache.t+L1_Cache.s,L1_Cache.b))).to_ulong());
       uint32_t tag2 = (bitset<32>((accessaddr.to_string().substr(0,L2_Cache.t))).to_ulong());
-      uint32_t index2 = (bitset<32>((accessaddr.to_string().substr(L2_Cache.t,L2_Cache.s))).to_ulong());
+      uint32_t index2 = 0;
+      if(cacheconfig.L2setsize != 0){
+        index2 = (bitset<32>((accessaddr.to_string().substr(L2_Cache.t,L2_Cache.s))).to_ulong());
+      }
       uint32_t offset2 = (bitset<32>((accessaddr.to_string().substr(L2_Cache.t+L2_Cache.s,L2_Cache.b))).to_ulong());
 
       //reset access state
@@ -162,6 +191,7 @@ int main(int argc, char* argv[]){
                 if(valid_L1[index1][j] == 0){
                   tag_arr_L1[index1][j] = tag1;
                   valid_L1[index1][j] = 1;
+                  dirty_L1[index1][j] = 0;
                   hasRoom = 1;
                   break;
                 }
@@ -181,6 +211,7 @@ int main(int argc, char* argv[]){
                 //Now we've finished write back, do the eviction
                 tag_arr_L1[index1][counterL1[index1]] = tag1;
                 dirty_L1[index1][counterL1[index1]] = 0;
+                //cout << counterL1[2038] << endl;
                 counterL1[index1]++;
                 //reset counter if it reaches max way
                 if(counterL1[index1] == cacheconfig.L1setsize) counterL1[index1] = 0;
@@ -191,13 +222,35 @@ int main(int argc, char* argv[]){
           //L2 read miss
           if(L2AcceState == 0){
             L2AcceState = 2;
+            int hasRoom = 0;
+            //search for empty room in L2
+            for(int i = 0;i < cacheconfig.L2setsize;i++){
+              if(valid_L2[index2][i] == 0){
+                tag_arr_L2[index2][i] = tag2;
+                valid_L2[index2][i] = 1;
+                dirty_L2[index2][i] = 0;
+                hasRoom = 1;
+                break;
+              }
+            }
+            //No empty space, we have to evict
+            if(!hasRoom){
+              //we should check dirty and perform WB at this point but this L2 is the lowest level,
+              //we can ignore that and simply do eviction
+              tag_arr_L2[index2][counterL2[index2]] = tag2;
+              dirty_L2[index2][counterL2[index2]] = 0;
+
+              counterL2[index2]++;
+              //reset L2 counter if necessary
+              if(counterL2[index2] == cacheconfig.L2setsize) counterL2[index2] = 0;
+            }
           }
         }
       }
 
 
       else {    
-        for(int i = 0; i < tag_arr_L1[index1][cacheconfig.L1setsize];i++){
+        for(int i = 0; i < cacheconfig.L1setsize;i++){
           //if we have write hit on L1
           if(tag_arr_L1[index1][i] == tag1 && valid_L1[index1][i] == 1){
             L1AcceState = 3;
@@ -209,11 +262,11 @@ int main(int argc, char* argv[]){
         // if we have write miss on L1, since no allocate,forward to L2
         if(L1AcceState== 0){
           L1AcceState = 4;
-          for(int i = 0; i < tag_arr_L2[index2][cacheconfig.L2setsize];i++){
+          for(int i = 0; i < cacheconfig.L2setsize;i++){
             //L2 write hit
             if(tag_arr_L2[index2][i] == tag2 && valid_L2[index2][i] == 1){
               L2AcceState = 3;
-              dirty_L2[index2][i] == 1;
+              dirty_L2[index2][i] = 1;
               break;
             }
           }
