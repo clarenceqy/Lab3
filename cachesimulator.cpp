@@ -239,6 +239,12 @@ int main(int argc, char* argv[]){
               //we can ignore that and simply do eviction
               tag_arr_L2[index2][counterL2[index2]] = tag2;
               dirty_L2[index2][counterL2[index2]] = 0;
+              //Also invalidate L1 block
+              for(int i = 0; i < cacheconfig.L1setsize; i++){
+                if(tag_arr_L1[index1][i] == tag1){
+                  valid_L1[index1][i] = 0;
+                }
+              }
 
               counterL2[index2]++;
               //reset L2 counter if necessary
