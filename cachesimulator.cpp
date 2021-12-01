@@ -190,7 +190,7 @@ int main(int argc, char* argv[]){
           }
           //L2 read miss
           if(L2AcceState == 0){
-
+            L2AcceState = 2;
           }
         }
       }
