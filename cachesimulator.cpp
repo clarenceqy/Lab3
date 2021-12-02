@@ -66,8 +66,8 @@ int main(int argc, char* argv[]){
   config cacheconfig;
   ifstream cache_params;
   string dummyLine;
-  //cache_params.open(argv[1]);
-  cache_params.open("cacheconfig.txt");
+  cache_params.open(argv[1]);
+  //cache_params.open("cacheconfig.txt");
   while(!cache_params.eof())  // read config file
   {
     cache_params>>dummyLine;
@@ -131,8 +131,8 @@ int main(int argc, char* argv[]){
   string outname;
   outname = string(argv[2]) + ".out";
 
-  //traces.open(argv[2]);
-  traces.open("trace.txt");
+  traces.open(argv[2]);
+  //traces.open("trace.txt");
   tracesout.open(outname.c_str());
 
   string line;
@@ -141,6 +141,8 @@ int main(int argc, char* argv[]){
   unsigned int addr;  // the address from the memory trace store in unsigned int;        
   bitset<32> accessaddr; // the address from the memory trace store in the bitset;
 
+
+  int cycle = 0;
   if (traces.is_open()&&tracesout.is_open()){    
     while (getline (traces,line)){   // read mem access file and access Cache
 
@@ -237,14 +239,30 @@ int main(int argc, char* argv[]){
             if(!hasRoom){
               //we should check dirty and perform WB at this point but this L2 is the lowest level,
               //we can ignore that and simply do eviction
-              tag_arr_L2[index2][counterL2[index2]] = tag2;
-              dirty_L2[index2][counterL2[index2]] = 0;
-              //Also invalidate L1 block
+              
+              //invalidate L1 block
+              int invalid_addr_int = ((tag_arr_L2[index2][counterL2[index2]]) << (32 - L2_Cache.t)) | (index2 << L2_Cache.b) | offset2;
+              int invalid_index = 0;
+              bitset<32> invalid_addr= bitset<32>(invalid_addr_int);
+              if(cacheconfig.L1setsize != 0){
+                invalid_index = (bitset<32>((invalid_addr.to_string().substr(L1_Cache.t,L1_Cache.s))).to_ulong());
+              }
+              int invalid_tag = (bitset<32>((invalid_addr.to_string().substr(0,L1_Cache.t))).to_ulong());
               for(int i = 0; i < cacheconfig.L1setsize; i++){
-                if(tag_arr_L1[index1][i] == tag1){
-                  valid_L1[index1][i] = 0;
+                if(tag_arr_L1[invalid_index][i] == invalid_tag){
+                  // int evictL1 = (invalid_tag << (32 - L1_Cache.t)) | invalid_index << L1_Cache.b | offset1;
+                  // cout << cycle << "  ";
+                  // cout  << hex << addr << " ";
+                  // cout << hex << invalid_addr_int<< "  ";
+                  // cout << hex << evictL1 << endl;
+                  valid_L1[invalid_index][i] = 0;
                 }
               }
+              
+
+              //cout << hex << tag_arr_L2[index2][counterL2[index2]] << endl;
+              tag_arr_L2[index2][counterL2[index2]] = tag2;
+              dirty_L2[index2][counterL2[index2]] = 0;
 
               counterL2[index2]++;
               //reset L2 counter if necessary
@@ -281,14 +299,9 @@ int main(int argc, char* argv[]){
             L2AcceState = 4;
           }
         }
-
-
-
-
-
       }
 
-
+      cycle++;
 
       // Output hit/miss results for L1 and L2 to the output file
       tracesout<< L1AcceState << " " << L2AcceState << endl;
