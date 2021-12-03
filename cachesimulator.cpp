@@ -100,27 +100,59 @@ int main(int argc, char* argv[]){
 
   int tag_arr_L1[line_L1][cacheconfig.L1setsize];
   int tag_arr_L2[line_L2][cacheconfig.L2setsize];
-  memset(tag_arr_L1,0,sizeof(tag_arr_L1));
-  memset(tag_arr_L2,0,sizeof(tag_arr_L2));
+  for(int i = 0;i < line_L1;i++){
+    for(int j = 0;j< cacheconfig.L1setsize;j++){
+      tag_arr_L1[i][j] = 0;
+    }
+  }
+  for(int i = 0;i < line_L2;i++){
+    for(int j = 0;j< cacheconfig.L2setsize;j++){
+      tag_arr_L2[i][j] = 0;
+    }
+  }
 
   int valid_L1[line_L1][cacheconfig.L1setsize];
   int valid_L2[line_L2][cacheconfig.L2setsize];
-  memset(valid_L1,0,sizeof(valid_L1));
-  memset(valid_L2,0,sizeof(valid_L2));
+  for(int i = 0;i < line_L1;i++){
+    for(int j = 0;j< cacheconfig.L1setsize;j++){
+      valid_L1[i][j] = 0;
+    }
+  }
+  for(int i = 0;i < line_L2;i++){
+    for(int j = 0;j< cacheconfig.L2setsize;j++){
+      valid_L2[i][j] = 0;
+    }
+  }
 
   //Initialize Dirty bit
   int dirty_L1[line_L1][cacheconfig.L1setsize];
   int dirty_L2[line_L2][cacheconfig.L2setsize];
-  memset(dirty_L1,0,sizeof(dirty_L1));
-  memset(dirty_L2,0,sizeof(dirty_L2));
+  for(int i = 0;i < line_L1;i++){
+    for(int j = 0;j< cacheconfig.L1setsize;j++){
+      dirty_L1[i][j] = 0;
+    }
+  }
+  for(int i = 0;i < line_L2;i++){
+    for(int j = 0;j< cacheconfig.L2setsize;j++){
+      dirty_L2[i][j] = 0;
+    }
+  }
 
   //Initialize Counter
   int counterL1[line_L1];
   int counterL2[line_L2];
-  memset(counterL1,0,sizeof(counterL1));
-  memset(counterL2,0,sizeof(counterL2));
+  for(int i = 0;i < line_L1;i++){
+    counterL1[i] = 0;
+  }
+  for(int i = 0;i < line_L2;i++){
+    counterL2[i] = 0;
+  }
 
-
+  // for(int i = 0;i < line_L2;i++){
+  //   for(int j = 0;j< cacheconfig.L2setsize;j++){
+  //     cout << tag_arr_L2[i][j] << endl;;
+  //   }
+  // }
 
   int L1AcceState =0; // L1 access state variable, can be one of NA, RH, RM, WH, WM;
   int L2AcceState =0; // L2 access state variable, can be one of NA, RH, RM, WH, WM;
