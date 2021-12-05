@@ -189,10 +189,7 @@ int main(int argc, char* argv[]){
 
       //reset access state
       L1AcceState = 0;
-      L2AcceState = 0; 
-
-      //cout << L1_Cache.t << " " << L1_Cache.s << endl;; 
-      //cout << index1 << " " << tag1 << endl;
+      L2AcceState = 0;
       
 
       // access the L1 and L2 Cache according to the trace;
@@ -228,9 +225,13 @@ int main(int argc, char* argv[]){
                 //if the block we are evicting is dirty, we need to write back before eviction
                 if(dirty_L1[index1][counterL1[index1] == 1]){
                   //search for tag in L2
+                  int dirty_addr_int = ((tag_arr_L1[index1][counterL1[index1]]) << (32 - L1_Cache.t)) | (index1 << L1_Cache.b) | offset2;
+                  bitset<32> dirty_addr= bitset<32>(dirty_addr_int);
+                  int dirty_tag = (bitset<32>((dirty_addr.to_string().substr(0,L2_Cache.t))).to_ulong());
                   for(int j = 0; j < cacheconfig.L2setsize; j++){
-                    if((tag_arr_L2[index2][j] == tag2) && (valid_L2[index2][j] == 1)){
+                    if((tag_arr_L2[index2][j] == dirty_tag) && (valid_L2[index2][j] == 1)){
                       dirty_L2[index2][j] = 1; //update the block in L2
+                      break;
                     }
                   }
                 }
@@ -274,8 +275,7 @@ int main(int argc, char* argv[]){
               int invalid_tag = (bitset<32>((invalid_addr.to_string().substr(0,L1_Cache.t))).to_ulong());
               for(int i = 0; i < cacheconfig.L1setsize; i++){
                 if(tag_arr_L1[invalid_index][i] == invalid_tag){
-                  valid_L1[invalid_index][i] = 0;
-                  cout << i <<" : "; 
+                  valid_L1[invalid_index][i] = 0; 
                   break;
                 }
               }
@@ -299,12 +299,27 @@ int main(int argc, char* argv[]){
               }
             }
             if(!hasRoom){
-              tag_arr_L1[index1][counterL1[index1]] = tag1;
-              dirty_L1[index1][counterL1[index1]] = 0;
-              counterL1[index1]++;
+                //if the block we are evicting is dirty, we need to write back before eviction
+                if(dirty_L1[index1][counterL1[index1] == 1]){
+                  //search for tag in L2
+                  int dirty_addr_int = ((tag_arr_L1[index1][counterL1[index1]]) << (32 - L1_Cache.t)) | (index1 << L1_Cache.b) | offset2;
+                  bitset<32> dirty_addr= bitset<32>(dirty_addr_int);
+                  int dirty_tag = (bitset<32>((dirty_addr.to_string().substr(0,L2_Cache.t))).to_ulong());
+                  for(int j = 0; j < cacheconfig.L2setsize; j++){
+                    if((tag_arr_L2[index2][j] == dirty_tag) && (valid_L2[index2][j] == 1)){
+                      dirty_L2[index2][j] = 1; //update the block in L2
+                      break;
+                    }
+                  }
+                }
+                //At this point we could have a write miss on L2
+                //Now we've finished write back, do the eviction
+                tag_arr_L1[index1][counterL1[index1]] = tag1;
+                dirty_L1[index1][counterL1[index1]] = 0;
+                counterL1[index1]++;
                 //reset counter if it reaches max way
-              if(counterL1[index1] == cacheconfig.L1setsize) counterL1[index1] = 0;
-            }
+                if(counterL1[index1] == cacheconfig.L1setsize) counterL1[index1] = 0;
+              }
           }
         }
       }
