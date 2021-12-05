@@ -67,7 +67,7 @@ int main(int argc, char* argv[]){
   ifstream cache_params;
   string dummyLine;
   cache_params.open(argv[1]);
-  //cache_params.open("cacheconfig.txt");
+  
   while(!cache_params.eof())  // read config file
   {
     cache_params>>dummyLine;
@@ -79,8 +79,6 @@ int main(int argc, char* argv[]){
     cache_params>>cacheconfig.L2setsize;        
     cache_params>>cacheconfig.L2size;
   }
-
-
 
   Cache L1_Cache;
   Cache L2_Cache;
@@ -148,15 +146,8 @@ int main(int argc, char* argv[]){
     counterL2[i] = 0;
   }
 
-  // for(int i = 0;i < line_L2;i++){
-  //   for(int j = 0;j< cacheconfig.L2setsize;j++){
-  //     cout << tag_arr_L2[i][j] << endl;;
-  //   }
-  // }
-
   int L1AcceState =0; // L1 access state variable, can be one of NA, RH, RM, WH, WM;
   int L2AcceState =0; // L2 access state variable, can be one of NA, RH, RM, WH, WM;
-
 
   ifstream traces;
   ofstream tracesout;
@@ -164,7 +155,6 @@ int main(int argc, char* argv[]){
   outname = string(argv[2]) + ".out";
 
   traces.open(argv[2]);
-  //traces.open("trace.txt");
   tracesout.open(outname.c_str());
 
   string line;
@@ -178,7 +168,6 @@ int main(int argc, char* argv[]){
   if (traces.is_open()&&tracesout.is_open()){    
     while (getline (traces,line)){   // read mem access file and access Cache
 
-      //cout << counterL1[2038] << endl;
       istringstream iss(line); 
       if (!(iss >> accesstype >> xaddr)) {break;}
       stringstream saddr(xaddr);
@@ -201,6 +190,10 @@ int main(int argc, char* argv[]){
       //reset access state
       L1AcceState = 0;
       L2AcceState = 0; 
+
+      //cout << L1_Cache.t << " " << L1_Cache.s << endl;; 
+      //cout << index1 << " " << tag1 << endl;
+      
 
       // access the L1 and L2 Cache according to the trace;
       if (accesstype.compare("R")==0){   
@@ -245,7 +238,6 @@ int main(int argc, char* argv[]){
                 //Now we've finished write back, do the eviction
                 tag_arr_L1[index1][counterL1[index1]] = tag1;
                 dirty_L1[index1][counterL1[index1]] = 0;
-                //cout << counterL1[2038] << endl;
                 counterL1[index1]++;
                 //reset counter if it reaches max way
                 if(counterL1[index1] == cacheconfig.L1setsize) counterL1[index1] = 0;
@@ -282,23 +274,36 @@ int main(int argc, char* argv[]){
               int invalid_tag = (bitset<32>((invalid_addr.to_string().substr(0,L1_Cache.t))).to_ulong());
               for(int i = 0; i < cacheconfig.L1setsize; i++){
                 if(tag_arr_L1[invalid_index][i] == invalid_tag){
-                  // int evictL1 = (invalid_tag << (32 - L1_Cache.t)) | invalid_index << L1_Cache.b | offset1;
-                  // cout << cycle << "  ";
-                  // cout  << hex << addr << " ";
-                  // cout << hex << invalid_addr_int<< "  ";
-                  // cout << hex << evictL1 << endl;
                   valid_L1[invalid_index][i] = 0;
+                  cout << i <<" : "; 
+                  break;
                 }
               }
               
-
-              //cout << hex << tag_arr_L2[index2][counterL2[index2]] << endl;
               tag_arr_L2[index2][counterL2[index2]] = tag2;
               dirty_L2[index2][counterL2[index2]] = 0;
 
               counterL2[index2]++;
               //reset L2 counter if necessary
               if(counterL2[index2] == cacheconfig.L2setsize) counterL2[index2] = 0;
+            }
+            //reload L1 cache
+            hasRoom = 0;
+            for(int i = 0; i < cacheconfig.L1setsize;i++){
+              if(valid_L1[index1][i] == 0){
+                tag_arr_L1[index1][i] = tag1;
+                valid_L1[index1][i] = 1;
+                dirty_L1[index1][i] = 0;
+                hasRoom = 1;
+                break;
+              }
+            }
+            if(!hasRoom){
+              tag_arr_L1[index1][counterL1[index1]] = tag1;
+              dirty_L1[index1][counterL1[index1]] = 0;
+              counterL1[index1]++;
+                //reset counter if it reaches max way
+              if(counterL1[index1] == cacheconfig.L1setsize) counterL1[index1] = 0;
             }
           }
         }
